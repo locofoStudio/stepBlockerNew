@@ -44,17 +44,11 @@ export const useStepBlocker = () => {
   const stepsUsedForEarningRef = useRef(0);
 
   // Get native modules (lazy access for bridgeless mode)
+  // CRITICAL: Add extensive null checks to prevent EXC_BAD_ACCESS
   const getModules = useCallback(() => {
-    try {
-      const modules = NativeModules as any;
-      return {
-        HealthKitModule: modules.HealthKitModule,
-        WidgetBridgeModule: modules.WidgetBridgeModule,
-        BlockerModule: modules.BlockerModule,
-        ScreenTimeModule: modules.ScreenTimeModule,
-      };
-    } catch (e) {
-      console.error('Error accessing NativeModules:', e);
+    // CRITICAL: Don't access NativeModules until React Native is ready
+    if (!modulesReady) {
+      console.log('[useStepBlocker] ⚠️ Native modules not ready yet, returning null');
       return {
         HealthKitModule: null,
         WidgetBridgeModule: null,
@@ -62,25 +56,100 @@ export const useStepBlocker = () => {
         ScreenTimeModule: null,
       };
     }
-  }, []);
+    
+    try {
+      // Defensive check: ensure NativeModules exists
+      if (!NativeModules) {
+        console.log('[useStepBlocker] ⚠️ NativeModules is null/undefined');
+        return {
+          HealthKitModule: null,
+          WidgetBridgeModule: null,
+          BlockerModule: null,
+          ScreenTimeModule: null,
+        };
+      }
+      
+      const modules = NativeModules as any;
+      
+      // Defensive check: ensure modules object is valid
+      if (!modules || typeof modules !== 'object') {
+        console.log('[useStepBlocker] ⚠️ NativeModules is not a valid object');
+        return {
+          HealthKitModule: null,
+          WidgetBridgeModule: null,
+          BlockerModule: null,
+          ScreenTimeModule: null,
+        };
+      }
+      
+      // Safely access module properties with null checks
+      const result = {
+        HealthKitModule: modules.HealthKitModule || null,
+        WidgetBridgeModule: modules.WidgetBridgeModule || null,
+        BlockerModule: modules.BlockerModule || null,
+        ScreenTimeModule: modules.ScreenTimeModule || null,
+      };
+      
+      // Safe logging - don't call Object.keys on potentially invalid object
+      try {
+        const moduleKeys = Object.keys(modules || {});
+        console.log('[useStepBlocker] Native modules check:', {
+          HealthKitModule: !!result.HealthKitModule,
+          WidgetBridgeModule: !!result.WidgetBridgeModule,
+          BlockerModule: !!result.BlockerModule,
+          ScreenTimeModule: !!result.ScreenTimeModule,
+          NativeModulesKeys: moduleKeys.slice(0, 10),
+        });
+      } catch (logError) {
+        console.log('[useStepBlocker] Native modules check (safe):', {
+          HealthKitModule: !!result.HealthKitModule,
+          WidgetBridgeModule: !!result.WidgetBridgeModule,
+          BlockerModule: !!result.BlockerModule,
+          ScreenTimeModule: !!result.ScreenTimeModule,
+        });
+      }
+      
+      return result;
+    } catch (e) {
+      console.error('[useStepBlocker] ❌ Error accessing NativeModules:', e);
+      return {
+        HealthKitModule: null,
+        WidgetBridgeModule: null,
+        BlockerModule: null,
+        ScreenTimeModule: null,
+      };
+    }
+  }, [modulesReady]);
 
+  // Track if native modules are safe to access (delay for bridgeless mode)
+  const [modulesReady, setModulesReady] = useState(false);
+  
   // Initialize - COMPLETELY REMOVED AsyncStorage from init
   // Only check AsyncStorage when user completes onboarding
   // This keeps the UI fully responsive - NO BLOCKING OPERATIONS
+  // CRITICAL: Delay native module access to prevent EXC_BAD_ACCESS in bridgeless mode
   useEffect(() => {
-    // Do nothing during init - just let the UI render
-    // AsyncStorage will only be checked when completeOnboarding is called
+    // Delay native module access to ensure React Native is fully initialized
+    const timer = setTimeout(() => {
+      console.log('[useStepBlocker] Native modules should be ready now');
+      setModulesReady(true);
+    }, 100); // 100ms delay to let React Native finish initialization
+    
     console.log('[useStepBlocker] Initialization complete - UI should be responsive');
+    return () => clearTimeout(timer);
   }, []);
 
   // Sync: Get steps, calculate earned minutes, add to wallet
   const sync = useCallback(async () => {
-    const { HealthKitModule, BlockerModule, WidgetBridgeModule } = getModules();
-    if (!HealthKitModule || !BlockerModule) return;
-    // WidgetBridgeModule disabled for now
-    if (!isAuthorized) return;
-    
     try {
+      const { HealthKitModule, BlockerModule, WidgetBridgeModule } = getModules();
+      if (!HealthKitModule || !BlockerModule) {
+        console.log('[useStepBlocker] sync: Modules not available, skipping');
+        return;
+      }
+      // WidgetBridgeModule disabled for now
+      if (!isAuthorized) return;
+      
       const steps = await HealthKitModule.getTodaySteps();
       setCurrentSteps(steps);
       

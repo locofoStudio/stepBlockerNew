@@ -6,12 +6,25 @@
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-  self.moduleName = @"StepBlocker";
-  // You can add your custom initial props in the dictionary below.
-  // They will be passed down to the ViewController used by React Native.
-  self.initialProps = @{};
+  NSLog(@"[AppDelegate] 🚀 Starting app initialization...");
+  
+  BOOL result = NO;
+  @try {
+    self.moduleName = @"StepBlocker";
+    // You can add your custom initial props in the dictionary below.
+    // They will be passed down to the ViewController used by React Native.
+    self.initialProps = @{};
 
-  BOOL result = [super application:application didFinishLaunchingWithOptions:launchOptions];
+    NSLog(@"[AppDelegate] ✅ Module name set, calling super...");
+    result = [super application:application didFinishLaunchingWithOptions:launchOptions];
+    NSLog(@"[AppDelegate] ✅ Super initialization completed, result: %@", result ? @"YES" : @"NO");
+  } @catch (NSException *exception) {
+    NSLog(@"[AppDelegate] ❌ CRASH during initialization!");
+    NSLog(@"[AppDelegate] Exception name: %@", exception.name);
+    NSLog(@"[AppDelegate] Exception reason: %@", exception.reason);
+    NSLog(@"[AppDelegate] Exception callStackSymbols: %@", exception.callStackSymbols);
+    @throw; // Re-throw to see the crash in Xcode
+  }
   
   // Debug: Log window and view hierarchy
   dispatch_async(dispatch_get_main_queue(), ^{
@@ -33,6 +46,8 @@
             for (UIView *subview in window.rootViewController.view.subviews) {
               NSLog(@"[AppDelegate] Subview: %@, frame: %@", subview, NSStringFromCGRect(subview.frame));
             }
+          } else {
+            NSLog(@"[AppDelegate] ⚠️ Still 0 subviews after 2s - React Native may not have mounted");
           }
         });
       }

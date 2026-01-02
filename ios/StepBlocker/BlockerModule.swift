@@ -8,12 +8,36 @@ import UserNotifications
 @objc(BlockerModule)
 class BlockerModule: NSObject {
   
-  let store = ManagedSettingsStore()
-  let userDefaults = UserDefaults(suiteName: "group.com.locofoStudio.stepblocker") ?? .standard
-  let activityCenter = DeviceActivityCenter()
+  // Lazy initialization to prevent crashes during module load
+  lazy var store: ManagedSettingsStore = {
+    NSLog("[BlockerModule] Initializing ManagedSettingsStore")
+    return ManagedSettingsStore()
+  }()
+  
+  lazy var userDefaults: UserDefaults = {
+    NSLog("[BlockerModule] Initializing UserDefaults with suite: group.com.locofoStudio.stepblocker")
+    if let defaults = UserDefaults(suiteName: "group.com.locofoStudio.stepblocker") {
+      NSLog("[BlockerModule] ✅ UserDefaults suite accessible")
+      return defaults
+    } else {
+      NSLog("[BlockerModule] ⚠️ UserDefaults suite NOT accessible, using standard")
+      return .standard
+    }
+  }()
+  
+  lazy var activityCenter: DeviceActivityCenter = {
+    NSLog("[BlockerModule] Initializing DeviceActivityCenter")
+    return DeviceActivityCenter()
+  }()
   
   // Schedule name for DeviceActivity monitoring
   private let scheduleName = DeviceActivityName("StepBlockerMonitoring")
+  
+  // Override init to add logging
+  override init() {
+    super.init()
+    NSLog("[BlockerModule] ✅ BlockerModule initialized successfully")
+  }
   
   @objc
   func requestAuthorization(_ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {

@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Pressable,
   SafeAreaView,
   StatusBar,
   Dimensions,
@@ -95,7 +94,17 @@ export const Onboarding = ({
   };
 
   const handleNext = () => {
-    setStep((prevStep) => prevStep + 1);
+    try {
+      console.log('[Onboarding] handleNext called, current step:', step);
+      setStep((prevStep) => {
+        const nextStep = prevStep + 1;
+        console.log('[Onboarding] setStep updating from', prevStep, 'to', nextStep);
+        return nextStep;
+      });
+    } catch (error) {
+      console.error('[Onboarding] Error in handleNext:', error);
+      Alert.alert('Error', 'Failed to proceed to next step: ' + String(error));
+    }
   };
 
   const handleFinish = () => {
@@ -113,7 +122,14 @@ export const Onboarding = ({
       <Text style={styles.subtitle}>
         StepBlocker turns your steps into currency. Want to use your favorite apps? You have to earn them.
       </Text>
-      <TouchableOpacity style={styles.button} onPress={handleNext}>
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={() => {
+          console.log('[Onboarding] Button onPress triggered');
+          handleNext();
+        }}
+        onPressIn={() => console.log('[Onboarding] Button onPressIn')}
+        activeOpacity={0.7}>
         <Text style={styles.buttonText}>Next</Text>
       </TouchableOpacity>
     </View>
