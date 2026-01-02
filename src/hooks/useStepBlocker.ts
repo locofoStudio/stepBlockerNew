@@ -47,8 +47,8 @@ export const useStepBlocker = () => {
   // CRITICAL: Add extensive null checks to prevent EXC_BAD_ACCESS
   const getModules = useCallback(() => {
     // CRITICAL: Don't access NativeModules until React Native is ready
+    // This prevents EXC_BAD_ACCESS crashes in bridgeless mode
     if (!modulesReady) {
-      console.log('[useStepBlocker] ⚠️ Native modules not ready yet, returning null');
       return {
         HealthKitModule: null,
         WidgetBridgeModule: null,
@@ -90,20 +90,10 @@ export const useStepBlocker = () => {
         ScreenTimeModule: modules.ScreenTimeModule || null,
       };
       
-      // Safe logging - don't call Object.keys on potentially invalid object
-      try {
-        const moduleKeys = Object.keys(modules || {});
-        console.log('[useStepBlocker] Native modules check:', {
+      // Log module availability (only once per session to reduce noise)
+      if (result.HealthKitModule || result.BlockerModule || result.ScreenTimeModule) {
+        console.log('[useStepBlocker] ✅ Native modules available:', {
           HealthKitModule: !!result.HealthKitModule,
-          WidgetBridgeModule: !!result.WidgetBridgeModule,
-          BlockerModule: !!result.BlockerModule,
-          ScreenTimeModule: !!result.ScreenTimeModule,
-          NativeModulesKeys: moduleKeys.slice(0, 10),
-        });
-      } catch (logError) {
-        console.log('[useStepBlocker] Native modules check (safe):', {
-          HealthKitModule: !!result.HealthKitModule,
-          WidgetBridgeModule: !!result.WidgetBridgeModule,
           BlockerModule: !!result.BlockerModule,
           ScreenTimeModule: !!result.ScreenTimeModule,
         });
@@ -129,11 +119,12 @@ export const useStepBlocker = () => {
   // This keeps the UI fully responsive - NO BLOCKING OPERATIONS
   // CRITICAL: Delay native module access to prevent EXC_BAD_ACCESS in bridgeless mode
   useEffect(() => {
-    // Delay native module access to ensure React Native is fully initialized
+    // Simple delay-based readiness - don't check modules during init to avoid crashes
+    // The defensive checks in getModules will handle safety
     const timer = setTimeout(() => {
-      console.log('[useStepBlocker] Native modules should be ready now');
+      console.log('[useStepBlocker] Native modules should be ready now (delay-based)');
       setModulesReady(true);
-    }, 100); // 100ms delay to let React Native finish initialization
+    }, 500); // 500ms delay to let React Native finish initialization
     
     console.log('[useStepBlocker] Initialization complete - UI should be responsive');
     return () => clearTimeout(timer);
@@ -279,8 +270,20 @@ export const useStepBlocker = () => {
 
   // Public functions
   const requestHealthAuth = async (): Promise<boolean> => {
-    const { HealthKitModule } = getModules();
-    if (!HealthKitModule) return false;
+    // Wait for modules to be ready if they're not ready yet
+    let attempts = 0;
+    let { HealthKitModule } = getModules();
+    while (!HealthKitModule && attempts < 10) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+      ({ HealthKitModule } = getModules());
+    }
+    
+    if (!HealthKitModule) {
+      console.error('[useStepBlocker] HealthKitModule not available after waiting');
+      return false;
+    }
+    
     try {
       await HealthKitModule.requestPermissions();
       const authorized = await HealthKitModule.checkAuthorizationStatus();
@@ -293,8 +296,20 @@ export const useStepBlocker = () => {
   };
 
   const requestScreenTimeAuth = async (): Promise<boolean> => {
-    const { BlockerModule } = getModules();
-    if (!BlockerModule?.requestAuthorization) return false;
+    // Wait for modules to be ready if they're not ready yet
+    let attempts = 0;
+    let { BlockerModule } = getModules();
+    while ((!BlockerModule || !BlockerModule.requestAuthorization) && attempts < 10) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+      ({ BlockerModule } = getModules());
+    }
+    
+    if (!BlockerModule?.requestAuthorization) {
+      console.error('[useStepBlocker] BlockerModule.requestAuthorization not available after waiting');
+      return false;
+    }
+    
     try {
       await BlockerModule.requestAuthorization();
       return true;

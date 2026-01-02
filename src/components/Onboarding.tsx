@@ -44,19 +44,12 @@ export const Onboarding = ({
       console.log("Health auth success:", success);
       if (success) {
         setHealthAuth(true);
-      } else {
-        // Permission denied - show helpful message
-        Alert.alert(
-          "Health Access Required",
-          "Please go to Settings > Health > Data Access & Devices > StepBlocker and enable 'Steps' to track your daily activity.",
-          [{ text: "OK" }]
-        );
       }
+      // No alert - iOS will show its own permission dialog
+      // If user denies, they can try again or go to Settings manually
     } catch (error: any) {
       console.error("Health authorization error:", error);
-      // Show user-friendly error message
-      const message = error?.message || "Could not authorize Health access. Please check Settings > Health > Data Access > StepBlocker.";
-      Alert.alert("Health Access Required", message, [{ text: "OK" }]);
+      // No alert - let iOS handle the permission flow
     } finally {
       setIsLoadingHealth(false);
     }
@@ -72,17 +65,12 @@ export const Onboarding = ({
       console.log("Screen time auth success:", success);
       if (success) {
         setScreenTimeAuth(true);
-      } else {
-        Alert.alert(
-          "Screen Time Access Required",
-          "Family Controls permission is required. Please ensure the capability is enabled in your Apple Developer account and rebuild the app.",
-          [{ text: "OK" }]
-        );
       }
+      // No alert - iOS will show its own permission dialog
+      // If user denies, they can try again or go to Settings manually
     } catch (error: any) {
       console.error("Screen Time authorization error:", error);
-      const message = error?.message || "Could not authorize Screen Time access. Please check that Family Controls capability is enabled in Apple Developer Portal.";
-      Alert.alert("Screen Time Access Required", message, [{ text: "OK" }]);
+      // No alert - let iOS handle the permission flow
     } finally {
       setIsLoadingScreenTime(false);
     }
