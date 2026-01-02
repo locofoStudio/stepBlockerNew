@@ -254,8 +254,10 @@ class BlockerModule: NSObject {
   private enum SBNotificationIds {
     static let sessionStarted = "StepBlocker.session_started"
     static let twoMinWarning = "StepBlocker.two_min_warning"
+    static let oneMinWarning = "StepBlocker.one_min_warning"
     static let timesUp = "StepBlocker.times_up"
     static let sessionCancelledEarly = "StepBlocker.session_cancelled_early"
+    static let minutesEarned = "StepBlocker.minutes_earned"
   }
 
   private func cancelSessionNotifications() {
@@ -263,10 +265,26 @@ class BlockerModule: NSObject {
       withIdentifiers: [
         SBNotificationIds.sessionStarted,
         SBNotificationIds.twoMinWarning,
+        SBNotificationIds.oneMinWarning,
         SBNotificationIds.timesUp,
         SBNotificationIds.sessionCancelledEarly
       ]
     )
+  }
+  
+  // Send immediate notification when minutes are earned
+  private func sendMinutesEarnedNotification(minutes: Int, newBalance: Int) {
+    let center = UNUserNotificationCenter.current()
+    let content = UNMutableNotificationContent()
+    content.title = "Time earned! 🎉"
+    content.body = "You earned \(minutes) minute\(minutes == 1 ? "" : "s") by walking! Your balance is now \(newBalance) minute\(newBalance == 1 ? "" : "s")."
+    content.sound = .default
+    content.badge = NSNumber(value: newBalance)
+    
+    let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+    let req = UNNotificationRequest(identifier: SBNotificationIds.minutesEarned + "_\(Date().timeIntervalSince1970)", content: content, trigger: trigger)
+    center.add(req)
+    NSLog("[BlockerModule] 📢 Sent notification: Earned \(minutes) minutes, new balance: \(newBalance)")
   }
 
   private func scheduleUnlockNotifications(endTime: Date, durationMinutes: Int) {
@@ -285,17 +303,32 @@ class BlockerModule: NSObject {
     }
 
     // A2 – 2-minute warning
-    let warningTime = endTime.addingTimeInterval(-120)
-    if warningTime > Date() {
+    let twoMinWarningTime = endTime.addingTimeInterval(-120)
+    if twoMinWarningTime > Date() {
       let content = UNMutableNotificationContent()
       content.title = "2 minutes left ⏳"
       content.body = "Wrap things up—your StepBlocker session is ending soon. Walk a bit more to top up your time."
       content.sound = .default
       let trigger = UNCalendarNotificationTrigger(
-        dateMatching: Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: warningTime),
+        dateMatching: Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: twoMinWarningTime),
         repeats: false
       )
       let req = UNNotificationRequest(identifier: SBNotificationIds.twoMinWarning, content: content, trigger: trigger)
+      center.add(req)
+    }
+    
+    // A2.5 – 1-minute warning
+    let oneMinWarningTime = endTime.addingTimeInterval(-60)
+    if oneMinWarningTime > Date() {
+      let content = UNMutableNotificationContent()
+      content.title = "1 minute left! ⚠️"
+      content.body = "You only have 1 minute left! Your apps will be blocked soon. Walk more to earn more time."
+      content.sound = .default
+      let trigger = UNCalendarNotificationTrigger(
+        dateMatching: Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: oneMinWarningTime),
+        repeats: false
+      )
+      let req = UNNotificationRequest(identifier: SBNotificationIds.oneMinWarning, content: content, trigger: trigger)
       center.add(req)
     }
 
@@ -474,6 +507,12 @@ class BlockerModule: NSObject {
     defaults.synchronize()
     
     NSLog("[BlockerModule] 💰 Added \(minutesToAdd) minutes to wallet. New balance: \(newBalance)")
+    
+    // Send notification when minutes are earned
+    if minutesToAdd > 0 {
+      sendMinutesEarnedNotification(minutes: minutesToAdd, newBalance: newBalance)
+    }
+    
     resolve(["balance": newBalance])
   }
   

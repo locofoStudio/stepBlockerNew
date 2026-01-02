@@ -1,6 +1,7 @@
 #import "AppDelegate.h"
 
 #import <React/RCTBundleURLProvider.h>
+#import <UserNotifications/UserNotifications.h>
 
 @implementation AppDelegate
 
@@ -18,6 +19,17 @@
     NSLog(@"[AppDelegate] ✅ Module name set, calling super...");
     result = [super application:application didFinishLaunchingWithOptions:launchOptions];
     NSLog(@"[AppDelegate] ✅ Super initialization completed, result: %@", result ? @"YES" : @"NO");
+    
+    // Request notification permissions
+    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+    [center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionBadge | UNAuthorizationOptionSound)
+                          completionHandler:^(BOOL granted, NSError * _Nullable error) {
+      if (granted) {
+        NSLog(@"[AppDelegate] ✅ Notification permissions granted");
+      } else {
+        NSLog(@"[AppDelegate] ⚠️ Notification permissions denied: %@", error.localizedDescription);
+      }
+    }];
   } @catch (NSException *exception) {
     NSLog(@"[AppDelegate] ❌ CRASH during initialization!");
     NSLog(@"[AppDelegate] Exception name: %@", exception.name);
