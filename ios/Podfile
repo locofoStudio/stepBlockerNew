@@ -1,0 +1,106 @@
+
+
+
+
+# Resolve react_native_pods.rb with node to allow for hoisting
+require Pod::Executable.execute_command('node', ['-p',
+  'require.resolve(
+    "react-native/scripts/react_native_pods.rb",
+    {paths: [process.argv[1]]},
+  )', __dir__]).strip
+
+platform :ios, min_ios_version_supported
+prepare_react_native_project!
+
+linkage = ENV['USE_FRAMEWORKS']
+if linkage != nil
+  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+  use_frameworks! :linkage => linkage.to_sym
+end
+
+target 'StepBlocker' do
+  config = use_native_modules!
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  # target 'StepBlockerTests' do
+  #   inherit! :complete
+  #   # Pods for testing
+  # end
+  
+  # Widget Extension Target
+  target 'StepWidgetExtension' do
+      inherit! :search_paths
+      # Widgets usually don't need React Native pods, but they might need some shared logic
+      # keeping this empty mainly to ensure search paths are inherited if needed
+  end
+
+  post_install do |installer|
+    # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false,
+      # :ccache_enabled => true
+    )
+    
+    # Fix for React-runtimescheduler redefinition errors
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        # Only remove header search paths that point to runtime scheduler in node_modules
+        # Keep other ReactCommon paths needed for Yoga and other components
+        config.build_settings['HEADER_SEARCH_PATHS'] ||= ['$(inherited)']
+        header_search_paths = config.build_settings['HEADER_SEARCH_PATHS']
+        if header_search_paths.is_a?(Array)
+          # Only remove paths that specifically point to runtime scheduler
+          # Don't modify Yoga or glog targets as they need access to node_modules for source files
+          unless target.name == 'Yoga' || target.name == 'glog'
+            config.build_settings['HEADER_SEARCH_PATHS'] = header_search_paths.reject do |path|
+              path.to_s.include?('node_modules/react-native/ReactCommon/react/renderer/runtimescheduler')
+            end
+          end
+          
+          # Ensure Yoga and glog targets can find Yoga headers when compiling from node_modules
+          if target.name == 'Yoga' || target.name == 'glog'
+            yoga_public_headers = "\"${PODS_ROOT}/Headers/Public/Yoga\""
+            unless header_search_paths.any? { |p| p.include?('Headers/Public/Yoga') }
+              config.build_settings['HEADER_SEARCH_PATHS'] << yoga_public_headers
+            end
+            # Add Yoga source root so enums and other headers can be found
+            yoga_source_root = "\"${PODS_ROOT}/../../node_modules/react-native/ReactCommon/yoga\""
+            unless header_search_paths.any? { |p| p.include?('ReactCommon/yoga') }
+              config.build_settings['HEADER_SEARCH_PATHS'] << yoga_source_root
+            end
+          end
+        end
+        
+        # Fix glog mutex.h compilation issue by ensuring HAVE_PTHREAD is defined
+        if target.name == 'glog'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          preprocessor_defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS']
+          if preprocessor_defs.is_a?(Array)
+            unless preprocessor_defs.any? { |d| d.include?('HAVE_PTHREAD') }
+              config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'HAVE_PTHREAD=1'
+            end
+            unless preprocessor_defs.any? { |d| d.include?('HAVE_RWLOCK') }
+              config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'HAVE_RWLOCK=1'
+            end
+          end
+        end
+        
+        # Ensure proper header visibility
+        # Don't override USE_HEADERMAP for targets that explicitly set it to NO
+        # Check if the target's xcconfig already sets USE_HEADERMAP to NO
+        targets_with_no_headermap = ['RCT-Folly', 'glog', 'React-graphics']
+        unless targets_with_no_headermap.include?(target.name)
+          config.build_settings['USE_HEADERMAP'] = 'YES'
+        end
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
+    end
+  end
+end
