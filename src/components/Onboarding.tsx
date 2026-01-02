@@ -94,7 +94,6 @@ export const Onboarding = ({
   };
 
   const handleNext = () => {
-    console.log('[Onboarding] handleNext called, current step:', step);
     setStep(step + 1);
   };
 
