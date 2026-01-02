@@ -74,8 +74,9 @@ class ScreenTimeModule: NSObject, RCTBridgeModule {
       status["blockedUsageLastEvent"] = lastEvent ?? NSNull()
     }
     
-    if let sharedDefaults = UserDefaults(suiteName: "group.com.stepblocker.shared") {
-      if let data = sharedDefaults.data(forKey: "BlockedAppsSelection") {
+    // Check for blocked apps selection using unified App Group
+    if let defaults = UserDefaults(suiteName: "group.com.locofoStudio.stepblocker") {
+      if let data = defaults.data(forKey: "BlockedAppsSelection") {
         status["blockedAppsSelectionBytes"] = data.count
       } else {
         status["blockedAppsSelectionBytes"] = 0

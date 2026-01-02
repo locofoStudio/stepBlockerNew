@@ -9,7 +9,7 @@ import UserNotifications
 class BlockerModule: NSObject {
   
   let store = ManagedSettingsStore()
-  let userDefaults = UserDefaults(suiteName: "group.com.stepblocker.shared") ?? .standard
+  let userDefaults = UserDefaults(suiteName: "group.com.locofoStudio.stepblocker") ?? .standard
   let activityCenter = DeviceActivityCenter()
   
   // Schedule name for DeviceActivity monitoring
