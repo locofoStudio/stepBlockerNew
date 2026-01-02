@@ -130,15 +130,55 @@ export const useStepBlocker = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Check authorization status when onboarded (after modules are ready)
+  useEffect(() => {
+    if (!isOnboarded || !modulesReady) return;
+    
+    const checkAuth = async () => {
+      try {
+        const modules = NativeModules as any;
+        const HealthKitModule = modules?.HealthKitModule;
+        
+        if (!HealthKitModule) {
+          console.log('[useStepBlocker] Cannot check auth: HealthKitModule not available');
+          return;
+        }
+        
+        // Check if already authorized
+        const authorized = await HealthKitModule.checkAuthorizationStatus();
+        if (authorized) {
+          console.log('[useStepBlocker] HealthKit already authorized, setting isAuthorized to true');
+          setIsAuthorized(true);
+        } else {
+          console.log('[useStepBlocker] HealthKit not authorized, requesting permissions...');
+          // Try to request permissions silently
+          await HealthKitModule.requestPermissions();
+          const newAuthStatus = await HealthKitModule.checkAuthorizationStatus();
+          if (newAuthStatus) {
+            setIsAuthorized(true);
+          }
+        }
+      } catch (e) {
+        console.error('[useStepBlocker] Auth check failed:', e);
+      }
+    };
+    
+    checkAuth();
+  }, [isOnboarded, modulesReady]);
+
   // Sync: Get steps, calculate earned minutes, add to wallet
   const sync = useCallback(async () => {
     try {
-      const { HealthKitModule, BlockerModule, WidgetBridgeModule } = getModules();
+      // Direct access to NativeModules - bypass modulesReady check
+      const modules = NativeModules as any;
+      const HealthKitModule = modules?.HealthKitModule;
+      const BlockerModule = modules?.BlockerModule;
+      
       if (!HealthKitModule || !BlockerModule) {
         console.log('[useStepBlocker] sync: Modules not available, skipping');
         return;
       }
-      // WidgetBridgeModule disabled for now
+      
       if (!isAuthorized) return;
       
       const steps = await HealthKitModule.getTodaySteps();
@@ -146,14 +186,6 @@ export const useStepBlocker = () => {
       
       if (activeMode !== 'earn') {
         BlockerModule.toggleBlocking(false);
-        // WidgetBridgeModule disabled for now
-        // WidgetBridgeModule?.updateWidgetData(
-        //   walletBalance,
-        //   unlockSessionEndTime || 0,
-        //   timeUntilReset,
-        //   screenDailyAverageSeconds,
-        //   steps
-        // );
         return;
       }
       
@@ -176,19 +208,10 @@ export const useStepBlocker = () => {
       // Block/unblock based on session
       const hasActiveSession = unlockSessionEndTime && unlockSessionEndTime > Date.now();
       BlockerModule.toggleBlocking(!hasActiveSession);
-      
-      // Update widget - DISABLED for now
-      // WidgetBridgeModule?.updateWidgetData(
-      //   walletBalance,
-      //   unlockSessionEndTime || 0,
-      //   timeUntilReset,
-      //   screenDailyAverageSeconds,
-      //   steps
-      // );
     } catch (e) {
-      console.error('Sync failed:', e);
+      console.error('[useStepBlocker] Sync failed:', e);
     }
-  }, [isAuthorized, activeMode, level, walletBalance, unlockSessionEndTime, timeUntilReset, screenDailyAverageSeconds, getModules]);
+  }, [isAuthorized, activeMode, level, walletBalance, unlockSessionEndTime, timeUntilReset, screenDailyAverageSeconds]);
 
   // Time until midnight
   useEffect(() => {
@@ -206,8 +229,15 @@ export const useStepBlocker = () => {
   // HealthKit observer
   useEffect(() => {
     if (!isAuthorized) return;
-    const { HealthKitModule } = getModules();
-    if (!HealthKitModule) return;
+    
+    // Direct access to NativeModules - bypass modulesReady check
+    const modules = NativeModules as any;
+    const HealthKitModule = modules?.HealthKitModule;
+    
+    if (!HealthKitModule) {
+      console.log('[useStepBlocker] HealthKit observer: Module not available');
+      return;
+    }
     
     const eventEmitter = new NativeEventEmitter(HealthKitModule);
     const subscription = eventEmitter.addListener('StepUpdate', (event) => {
@@ -229,7 +259,7 @@ export const useStepBlocker = () => {
       }
       subscription.remove();
     };
-  }, [isAuthorized, activeMode, sync, getModules]);
+  }, [isAuthorized, activeMode, sync]);
 
   // Sync on app state change
   useEffect(() => {
@@ -244,9 +274,16 @@ export const useStepBlocker = () => {
 
   // Sync wallet periodically
   const syncWalletBalance = useCallback(async () => {
-    const { BlockerModule } = getModules();
-    if (!BlockerModule?.getWalletBalance) return;
     try {
+      // Direct access to NativeModules - bypass modulesReady check
+      const modules = NativeModules as any;
+      const BlockerModule = modules?.BlockerModule;
+      
+      if (!BlockerModule?.getWalletBalance) {
+        console.log('[useStepBlocker] syncWalletBalance: Module not available');
+        return;
+      }
+      
       const walletData = await BlockerModule.getWalletBalance();
       setWalletBalance(walletData.balance || 0);
       if (walletData.hasActiveSession && walletData.sessionEndTime) {
@@ -264,9 +301,9 @@ export const useStepBlocker = () => {
         setUnlockSessionDuration(0);
       }
     } catch (e) {
-      console.log('Wallet sync failed:', e);
+      console.error('[useStepBlocker] Wallet sync failed:', e);
     }
-  }, [getModules]);
+  }, []);
 
   // Public functions
   const requestHealthAuth = async (): Promise<boolean> => {
@@ -369,18 +406,26 @@ export const useStepBlocker = () => {
   const stopActiveMode = async () => {
     setActiveMode(null);
     await AsyncStorage.removeItem(ACTIVE_MODE_KEY);
-    const { BlockerModule } = getModules();
-    if (BlockerModule) BlockerModule.toggleBlocking(false);
+    try {
+      const modules = NativeModules as any;
+      const BlockerModule = modules?.BlockerModule;
+      if (BlockerModule) BlockerModule.toggleBlocking(false);
+    } catch (e) {
+      console.error('[useStepBlocker] stopActiveMode failed:', e);
+    }
     return true;
   };
 
   const unlockApps = useCallback(async (minutes: number): Promise<boolean> => {
-    const { BlockerModule } = getModules();
-    if (!BlockerModule?.unlockApps) {
-      Alert.alert('Error', 'Unlock feature not available');
-      return false;
-    }
     try {
+      const modules = NativeModules as any;
+      const BlockerModule = modules?.BlockerModule;
+      
+      if (!BlockerModule?.unlockApps) {
+        Alert.alert('Error', 'Unlock feature not available');
+        return false;
+      }
+      
       const result = await BlockerModule.unlockApps(minutes);
       setWalletBalance(result.balance || 0);
       if (result.endTime) {
@@ -389,41 +434,51 @@ export const useStepBlocker = () => {
       }
       return true;
     } catch (e: any) {
-      console.error('Unlock failed:', e);
+      console.error('[useStepBlocker] Unlock failed:', e);
       Alert.alert('Out of minutes ⏳', 'Your time bank is empty. Walk more to earn time!');
       return false;
     }
-  }, [getModules]);
+  }, []);
 
   const endSessionEarly = useCallback(async (): Promise<boolean> => {
-    const { BlockerModule } = getModules();
-    if (!BlockerModule?.endSessionEarly) {
-      Alert.alert('Error', 'End session feature not available');
-      return false;
-    }
     try {
+      const modules = NativeModules as any;
+      const BlockerModule = modules?.BlockerModule;
+      
+      if (!BlockerModule?.endSessionEarly) {
+        Alert.alert('Error', 'End session feature not available');
+        return false;
+      }
+      
       const result = await BlockerModule.endSessionEarly();
       setWalletBalance(prev => prev + (result.refunded || 0));
       setUnlockSessionEndTime(null);
       setUnlockSessionDuration(0);
       return true;
     } catch (e: any) {
-      console.error('End session failed:', e);
+      console.error('[useStepBlocker] End session failed:', e);
       Alert.alert('Error', e.message || 'Failed to end session');
       return false;
     }
-  }, [getModules]);
+  }, []);
 
   // Blocking state effect
   useEffect(() => {
-    const { BlockerModule } = getModules();
-    if (!BlockerModule || activeMode !== 'earn') {
-      if (BlockerModule) BlockerModule.toggleBlocking(false);
-      return;
+    try {
+      const modules = NativeModules as any;
+      const BlockerModule = modules?.BlockerModule;
+      
+      if (!BlockerModule || activeMode !== 'earn') {
+        if (BlockerModule) BlockerModule.toggleBlocking(false);
+        return;
+      }
+      
+      const hasActiveSession = unlockSessionEndTime && unlockSessionEndTime > Date.now();
+      BlockerModule.toggleBlocking(!hasActiveSession);
+    } catch (e) {
+      console.error('[useStepBlocker] Blocking state effect failed:', e);
     }
-    const hasActiveSession = unlockSessionEndTime && unlockSessionEndTime > Date.now();
-    BlockerModule.toggleBlocking(!hasActiveSession);
-  }, [activeMode, unlockSessionEndTime, getModules]);
+  }, [activeMode, unlockSessionEndTime]);
 
   // Calculate remaining time
   const remainingTime = unlockSessionEndTime && unlockSessionEndTime > Date.now()
