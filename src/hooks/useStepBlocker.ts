@@ -23,7 +23,7 @@ export const useStepBlocker = () => {
   const [blockedAppsCount, setBlockedAppsCount] = useState(0);
   // Initialize to false instead of null - this prevents infinite loading screen
   // Will be updated to true if onboarding is actually completed
-  const [isOnboarded, setIsOnboarded] = useState<boolean | null>(false);
+  const [isOnboarded, setIsOnboarded] = useState<boolean>(false);
   // #region agent log
   // Log state changes
   useEffect(() => {
