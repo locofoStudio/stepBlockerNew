@@ -270,24 +270,22 @@ export const useStepBlocker = () => {
 
   // Public functions
   const requestHealthAuth = async (): Promise<boolean> => {
-    // Wait for modules to be ready if they're not ready yet
-    let attempts = 0;
-    let { HealthKitModule } = getModules();
-    while (!HealthKitModule && attempts < 10) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      attempts++;
-      ({ HealthKitModule } = getModules());
-    }
-    
-    if (!HealthKitModule) {
-      console.error('[useStepBlocker] HealthKitModule not available after waiting');
-      return false;
-    }
-    
     try {
+      // Direct access during authorization - bypass modulesReady check
+      // This ensures iOS permission dialogs appear immediately
+      const modules = NativeModules as any;
+      const HealthKitModule = modules?.HealthKitModule;
+      
+      if (!HealthKitModule) {
+        console.error('[useStepBlocker] HealthKitModule not available');
+        return false;
+      }
+      
+      console.log('[useStepBlocker] Requesting HealthKit permissions...');
       await HealthKitModule.requestPermissions();
       const authorized = await HealthKitModule.checkAuthorizationStatus();
       if (authorized) setIsAuthorized(true);
+      console.log('[useStepBlocker] HealthKit authorization result:', authorized);
       return authorized;
     } catch (e) {
       console.error('HealthKit auth failed:', e);
@@ -296,22 +294,20 @@ export const useStepBlocker = () => {
   };
 
   const requestScreenTimeAuth = async (): Promise<boolean> => {
-    // Wait for modules to be ready if they're not ready yet
-    let attempts = 0;
-    let { BlockerModule } = getModules();
-    while ((!BlockerModule || !BlockerModule.requestAuthorization) && attempts < 10) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      attempts++;
-      ({ BlockerModule } = getModules());
-    }
-    
-    if (!BlockerModule?.requestAuthorization) {
-      console.error('[useStepBlocker] BlockerModule.requestAuthorization not available after waiting');
-      return false;
-    }
-    
     try {
+      // Direct access during authorization - bypass modulesReady check
+      // This ensures iOS permission dialogs appear immediately
+      const modules = NativeModules as any;
+      const BlockerModule = modules?.BlockerModule;
+      
+      if (!BlockerModule?.requestAuthorization) {
+        console.error('[useStepBlocker] BlockerModule.requestAuthorization not available');
+        return false;
+      }
+      
+      console.log('[useStepBlocker] Requesting Screen Time permissions...');
       await BlockerModule.requestAuthorization();
+      console.log('[useStepBlocker] Screen Time authorization completed');
       return true;
     } catch (e) {
       console.error('ScreenTime auth failed:', e);
