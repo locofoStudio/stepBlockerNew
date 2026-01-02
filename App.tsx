@@ -159,6 +159,7 @@ function App(): React.JSX.Element {
   // If AsyncStorage succeeds, it will update to true for onboarded users
   
   if (!isOnboarded) {
+      console.log('[App] Rendering Onboarding, isOnboarded:', isOnboarded);
       return (
           <Onboarding
             onComplete={completeOnboarding}

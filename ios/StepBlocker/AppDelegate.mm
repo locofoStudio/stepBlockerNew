@@ -11,7 +11,37 @@
   // They will be passed down to the ViewController used by React Native.
   self.initialProps = @{};
 
-  return [super application:application didFinishLaunchingWithOptions:launchOptions];
+  BOOL result = [super application:application didFinishLaunchingWithOptions:launchOptions];
+  
+  // Debug: Log window and view hierarchy
+  dispatch_async(dispatch_get_main_queue(), ^{
+    UIWindow *window = [UIApplication sharedApplication].keyWindow;
+    if (window) {
+      NSLog(@"[AppDelegate] Window found: %@", window);
+      NSLog(@"[AppDelegate] Window frame: %@", NSStringFromCGRect(window.frame));
+      NSLog(@"[AppDelegate] Root VC: %@", window.rootViewController);
+      if (window.rootViewController) {
+        NSLog(@"[AppDelegate] Root VC view: %@", window.rootViewController.view);
+        NSLog(@"[AppDelegate] Root VC view frame: %@", NSStringFromCGRect(window.rootViewController.view.frame));
+        NSLog(@"[AppDelegate] Root VC view backgroundColor: %@", window.rootViewController.view.backgroundColor);
+        NSLog(@"[AppDelegate] Root VC view subviews count: %lu", (unsigned long)window.rootViewController.view.subviews.count);
+        
+        // Check again after a delay to see if React Native has mounted
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+          NSLog(@"[AppDelegate] After 2s delay - Root VC view subviews count: %lu", (unsigned long)window.rootViewController.view.subviews.count);
+          if (window.rootViewController.view.subviews.count > 0) {
+            for (UIView *subview in window.rootViewController.view.subviews) {
+              NSLog(@"[AppDelegate] Subview: %@, frame: %@", subview, NSStringFromCGRect(subview.frame));
+            }
+          }
+        });
+      }
+    } else {
+      NSLog(@"[AppDelegate] ❌ No key window found!");
+    }
+  });
+  
+  return result;
 }
 
 - (NSURL *)sourceURLForBridge:(RCTBridge *)bridge

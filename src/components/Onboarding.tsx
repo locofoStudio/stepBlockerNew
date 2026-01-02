@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   SafeAreaView,
   StatusBar,
   Dimensions,
-  Image,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -27,6 +27,7 @@ export const Onboarding = ({
   onRequestScreenTime,
   onPickApps,
 }: Props) => {
+  console.log('[Onboarding] Component rendering');
   const [step, setStep] = useState(0);
   const [healthAuth, setHealthAuth] = useState(false);
   const [screenTimeAuth, setScreenTimeAuth] = useState(false);
@@ -94,7 +95,7 @@ export const Onboarding = ({
   };
 
   const handleNext = () => {
-    setStep(step + 1);
+    setStep((prevStep) => prevStep + 1);
   };
 
   const handleFinish = () => {
@@ -106,21 +107,13 @@ export const Onboarding = ({
   const renderStep1_Intro = () => (
     <View style={styles.slide}>
       <View style={styles.iconContainer}>
-        <Image 
-          source={require('../../assets/images/logo.jpg')} 
-          style={styles.logoImage}
-          resizeMode="contain"
-        />
+        <Text style={styles.icon}>🚶</Text>
       </View>
       <Text style={styles.title}>Walk to Scroll</Text>
       <Text style={styles.subtitle}>
         StepBlocker turns your steps into currency. Want to use your favorite apps? You have to earn them.
       </Text>
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={handleNext}
-        activeOpacity={0.7}
-        testID="onboarding-next-button">
+      <TouchableOpacity style={styles.button} onPress={handleNext}>
         <Text style={styles.buttonText}>Next</Text>
       </TouchableOpacity>
     </View>
@@ -129,11 +122,7 @@ export const Onboarding = ({
   const renderStep2_Concept = () => (
     <View style={styles.slide}>
       <View style={styles.iconContainer}>
-        <Image 
-          source={require('../../assets/images/logo.jpg')} 
-          style={styles.logoImage}
-          resizeMode="contain"
-        />
+        <Text style={styles.icon}>🔒</Text>
       </View>
       <Text style={styles.title}>Block Distractions</Text>
       <Text style={styles.subtitle}>
@@ -201,11 +190,7 @@ export const Onboarding = ({
   const renderStep4_Selection = () => (
       <View style={styles.slide}>
         <View style={styles.iconContainer}>
-          <Image 
-            source={require('../../assets/images/logo.jpg')} 
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+          <Text style={styles.icon}>📱</Text>
         </View>
         <Text style={styles.title}>Select Apps</Text>
         <Text style={styles.subtitle}>
@@ -231,23 +216,34 @@ export const Onboarding = ({
       </View>
   );
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <View style={styles.content}>
-        {step === 0 && renderStep1_Intro()}
-        {step === 1 && renderStep2_Concept()}
-        {step === 2 && renderStep3_Permissions()}
-        {step === 3 && renderStep4_Selection()}
-        
-        <View style={styles.dots}>
-          {[0, 1, 2, 3].map((i) => (
-            <View key={i} style={[styles.dot, step === i && styles.dotActive]} />
-          ))}
+  console.log('[Onboarding] Rendering return, step:', step);
+  
+  try {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.content}>
+          {step === 0 && renderStep1_Intro()}
+          {step === 1 && renderStep2_Concept()}
+          {step === 2 && renderStep3_Permissions()}
+          {step === 3 && renderStep4_Selection()}
+          
+          <View style={styles.dots}>
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={[styles.dot, step === i && styles.dotActive]} />
+            ))}
+          </View>
         </View>
+      </SafeAreaView>
+    );
+  } catch (error) {
+    console.error('[Onboarding] Error in render:', error);
+    return (
+      <View style={{ flex: 1, backgroundColor: '#ff0000', justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: '#fff' }}>Error: {String(error)}</Text>
       </View>
-    </SafeAreaView>
-  );
+    );
+  }
 };
 
 const styles = StyleSheet.create({

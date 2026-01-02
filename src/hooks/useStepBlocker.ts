@@ -64,52 +64,20 @@ export const useStepBlocker = () => {
     }
   }, []);
 
-  // Initialize - SIMPLIFIED: Don't read AsyncStorage during init
+  // Initialize - COMPLETELY REMOVED AsyncStorage from init
   // Only check AsyncStorage when user completes onboarding
-  // This keeps the UI fully responsive
+  // This keeps the UI fully responsive - NO BLOCKING OPERATIONS
   useEffect(() => {
-    let isMounted = true;
-    
-    // Check if user is already onboarded (only if needed, after UI is ready)
-    // Use a simple timeout to defer this check
-    const checkOnboarding = async () => {
-      try {
-        const onboarded = await AsyncStorage.getItem(ONBOARDING_KEY);
-        if (isMounted && onboarded === 'true') {
-          setIsOnboarded(true);
-          // Load settings if onboarded
-          const savedCount = await AsyncStorage.getItem(BLOCKED_APPS_COUNT_KEY);
-          const savedLevel = await AsyncStorage.getItem(LEVEL_KEY);
-          const savedActiveMode = await AsyncStorage.getItem(ACTIVE_MODE_KEY);
-          
-          if (savedCount) setBlockedAppsCount(parseInt(savedCount, 10));
-          if (savedLevel === 'easy' || savedLevel === 'medium' || savedLevel === 'hard') {
-            setLevelState(savedLevel);
-          }
-          if (savedActiveMode === 'earn') {
-            setActiveMode('earn');
-          }
-        }
-      } catch (error) {
-        console.error('[useStepBlocker] Error checking onboarding:', error);
-        // Keep isOnboarded as false on error
-      }
-    };
-    
-    // Defer the check to keep UI responsive
-    setTimeout(() => {
-      checkOnboarding();
-    }, 100);
-    
-    return () => {
-      isMounted = false;
-    };
+    // Do nothing during init - just let the UI render
+    // AsyncStorage will only be checked when completeOnboarding is called
+    console.log('[useStepBlocker] Initialization complete - UI should be responsive');
   }, []);
 
   // Sync: Get steps, calculate earned minutes, add to wallet
   const sync = useCallback(async () => {
     const { HealthKitModule, BlockerModule, WidgetBridgeModule } = getModules();
-    if (!HealthKitModule || !BlockerModule || !WidgetBridgeModule) return;
+    if (!HealthKitModule || !BlockerModule) return;
+    // WidgetBridgeModule disabled for now
     if (!isAuthorized) return;
     
     try {
@@ -118,13 +86,14 @@ export const useStepBlocker = () => {
       
       if (activeMode !== 'earn') {
         BlockerModule.toggleBlocking(false);
-        WidgetBridgeModule.updateWidgetData(
-          walletBalance,
-          unlockSessionEndTime || 0,
-          timeUntilReset,
-          screenDailyAverageSeconds,
-          steps
-        );
+        // WidgetBridgeModule disabled for now
+        // WidgetBridgeModule?.updateWidgetData(
+        //   walletBalance,
+        //   unlockSessionEndTime || 0,
+        //   timeUntilReset,
+        //   screenDailyAverageSeconds,
+        //   steps
+        // );
         return;
       }
       
@@ -148,14 +117,14 @@ export const useStepBlocker = () => {
       const hasActiveSession = unlockSessionEndTime && unlockSessionEndTime > Date.now();
       BlockerModule.toggleBlocking(!hasActiveSession);
       
-      // Update widget
-      WidgetBridgeModule.updateWidgetData(
-        walletBalance,
-        unlockSessionEndTime || 0,
-        timeUntilReset,
-        screenDailyAverageSeconds,
-        steps
-      );
+      // Update widget - DISABLED for now
+      // WidgetBridgeModule?.updateWidgetData(
+      //   walletBalance,
+      //   unlockSessionEndTime || 0,
+      //   timeUntilReset,
+      //   screenDailyAverageSeconds,
+      //   steps
+      // );
     } catch (e) {
       console.error('Sync failed:', e);
     }

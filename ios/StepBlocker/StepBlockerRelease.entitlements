@@ -12,7 +12,6 @@
 	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.locofo.dotto</string>
 		<string>group.com.locofoStudio.stepblocker</string>
 	</array>
 </dict>

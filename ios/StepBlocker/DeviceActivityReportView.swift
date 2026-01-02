@@ -30,6 +30,9 @@ class DeviceActivityReportViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        // CRITICAL: Disable user interaction on the main view so it doesn't block touches
+        view.isUserInteractionEnabled = false
+        
         // Initial setup
         addReportView()
         
@@ -45,6 +48,8 @@ class DeviceActivityReportViewController: UIViewController {
         addChild(hostingController)
         view.addSubview(hostingController.view)
         hostingController.view.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
+        // CRITICAL: Disable user interaction so this view doesn't block touches
+        hostingController.view.isUserInteractionEnabled = false
         hostingController.didMove(toParent: self)
         currentHostingController = hostingController
     }
@@ -92,15 +97,19 @@ class DeviceActivityReportBridge: NSObject {
                 self.reportViewController?.view.removeFromSuperview()
                 self.reportViewController?.removeFromParent()
                 
-                // Add the report view controller as a child
+                // DISABLED: Add the report view controller as a child
+                // This was blocking touches - completely disabled for now
+                /*
                 let reportVC = DeviceActivityReportViewController()
                 rootVC.addChild(reportVC)
                 rootVC.view.addSubview(reportVC.view)
-                reportVC.view.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
+                reportVC.view.frame = CGRect(x: -100, y: -100, width: 1, height: 1)
+                reportVC.view.isUserInteractionEnabled = false
                 reportVC.didMove(toParent: rootVC)
                 
                 self.reportViewController = reportVC
-                NSLog("[DeviceActivityReportBridge] ✅ Started report tracking")
+                */
+                NSLog("[DeviceActivityReportBridge] ✅ Report tracking DISABLED")
             }
         } else {
             NSLog("[DeviceActivityReportBridge] ❌ iOS 15+ required")
