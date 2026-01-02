@@ -316,17 +316,31 @@ export const useStepBlocker = () => {
   };
 
   const pickApps = async () => {
-    const { BlockerModule } = getModules();
-    if (!BlockerModule) return;
     try {
+      // Direct access during app selection - bypass modulesReady check
+      // This ensures the app picker appears immediately
+      const modules = NativeModules as any;
+      const BlockerModule = modules?.BlockerModule;
+      
+      if (!BlockerModule) {
+        console.error('[useStepBlocker] BlockerModule not available for app selection');
+        return;
+      }
+      
+      console.log('[useStepBlocker] Requesting app selection...');
+      
+      // Re-request authorization just in case, though UI should handle it
       if (BlockerModule.requestAuthorization) {
         await BlockerModule.requestAuthorization();
       }
+      
       const count = await BlockerModule.presentAppPicker();
+      console.log('[useStepBlocker] App selection completed, count:', count);
+      
       setBlockedAppsCount(count);
       await AsyncStorage.setItem(BLOCKED_APPS_COUNT_KEY, count.toString());
     } catch (e) {
-      console.error('Pick apps failed:', e);
+      console.error('[useStepBlocker] Pick apps failed:', e);
     }
   };
 
