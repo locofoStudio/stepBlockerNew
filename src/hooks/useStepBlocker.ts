@@ -11,6 +11,10 @@ const LAST_DAY_KEY = 'LAST_DAY';
 
 export type Level = 'easy' | 'medium' | 'hard';
 
+// Minutes earned per 1000 steps walked
+// Easy: 1000 steps = 20 minutes screen time
+// Medium: 1000 steps = 10 minutes screen time
+// Hard: 1000 steps = 5 minutes screen time
 const LEVEL_CONFIG: Record<Level, number> = {
   easy: 20,
   medium: 10,
@@ -190,6 +194,7 @@ export const useStepBlocker = () => {
       }
       
       // Calculate earned minutes (increments of 1000 steps)
+      // Easy: 1000 steps = 20 minutes, Medium: 1000 steps = 10 minutes, Hard: 1000 steps = 5 minutes
       const minutesPer1000 = LEVEL_CONFIG[level];
       const currentIncrements = Math.floor(steps / 1000);
       const usedIncrements = Math.floor(stepsUsedForEarningRef.current / 1000);
@@ -197,11 +202,13 @@ export const useStepBlocker = () => {
       
       if (newIncrements > 0) {
         const newMinutes = newIncrements * minutesPer1000;
+        console.log(`[useStepBlocker] Steps: ${steps}, Level: ${level}, Minutes per 1000: ${minutesPer1000}, New increments: ${newIncrements}, New minutes: ${newMinutes}`);
         
         if (BlockerModule.addToWalletBalance) {
           const result = await BlockerModule.addToWalletBalance(newMinutes);
           setWalletBalance(result.balance || 0);
           stepsUsedForEarningRef.current = currentIncrements * 1000;
+          console.log(`[useStepBlocker] Added ${newMinutes} minutes to wallet. New balance: ${result.balance}`);
         }
       }
       

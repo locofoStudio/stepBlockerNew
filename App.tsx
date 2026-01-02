@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
   },
   startButton: {
     backgroundColor: '#353535',
-    height: 112,
+    height: 90,
     borderRadius: 18,
     width: '100%',
     alignItems: 'center',
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   stopButtonContainer: {
-    height: 120,
+    height: 96,
     backgroundColor: '#FF3B30',
     borderRadius: 0,
   },
