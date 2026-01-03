@@ -3,16 +3,20 @@ import DeviceActivity
 import UIKit
 
 /// SwiftUI view that embeds DeviceActivityReport to trigger the extension
-@available(iOS 15.0, *)
+@available(iOS 16.0, *)
 struct DeviceActivityReportViewWrapper: View {
     // Filter for the report - uses the "TotalActivity" context from StepBlockerReport
-    let filter = DeviceActivityFilter(
-        segment: .daily(
-            during: Calendar.current.dateInterval(of: .day, for: Date())!
+    var filter: DeviceActivityFilter {
+        DeviceActivityFilter(
+            segment: .daily(
+                during: Calendar.current.dateInterval(of: .day, for: Date())!
+            )
         )
-    )
+    }
     
-    let context: DeviceActivityReport.Context = .init("TotalActivity")
+    var context: DeviceActivityReport.Context {
+        .init("TotalActivity")
+    }
     
     var body: some View {
         // This view triggers the StepBlockerReportExtension's makeConfiguration
@@ -23,7 +27,7 @@ struct DeviceActivityReportViewWrapper: View {
 }
 
 /// UIKit wrapper for the SwiftUI view
-@available(iOS 15.0, *)
+@available(iOS 16.0, *)
 class DeviceActivityReportViewController: UIViewController {
     private var currentHostingController: UIHostingController<DeviceActivityReportViewWrapper>?
     
@@ -44,14 +48,16 @@ class DeviceActivityReportViewController: UIViewController {
     }
     
     private func addReportView() {
-        let hostingController = UIHostingController(rootView: DeviceActivityReportViewWrapper())
-        addChild(hostingController)
-        view.addSubview(hostingController.view)
-        hostingController.view.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
-        // CRITICAL: Disable user interaction so this view doesn't block touches
-        hostingController.view.isUserInteractionEnabled = false
-        hostingController.didMove(toParent: self)
-        currentHostingController = hostingController
+        if #available(iOS 16.0, *) {
+            let hostingController = UIHostingController(rootView: DeviceActivityReportViewWrapper())
+            addChild(hostingController)
+            view.addSubview(hostingController.view)
+            hostingController.view.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
+            // CRITICAL: Disable user interaction so this view doesn't block touches
+            hostingController.view.isUserInteractionEnabled = false
+            hostingController.didMove(toParent: self)
+            currentHostingController = hostingController
+        }
     }
     
     private func refreshReportView() {
@@ -77,7 +83,7 @@ class DeviceActivityReportBridge: NSObject {
     func startReportTracking() {
         NSLog("[DeviceActivityReportBridge] startReportTracking called")
         
-        if #available(iOS 15.0, *) {
+        if #available(iOS 16.0, *) {
             DispatchQueue.main.async {
                 NSLog("[DeviceActivityReportBridge] Looking for root VC...")
                 
@@ -112,7 +118,7 @@ class DeviceActivityReportBridge: NSObject {
                 NSLog("[DeviceActivityReportBridge] ✅ Report tracking DISABLED")
             }
         } else {
-            NSLog("[DeviceActivityReportBridge] ❌ iOS 15+ required")
+            NSLog("[DeviceActivityReportBridge] ❌ iOS 16.0+ required for DeviceActivityReport")
         }
     }
     

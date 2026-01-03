@@ -41,7 +41,7 @@ class BlockerModule: NSObject {
   
   @objc
   func requestAuthorization(_ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
-    if #available(iOS 15.0, *) {
+    if #available(iOS 16.0, *) {
       DispatchQueue.main.async {
         Task {
           do {
@@ -148,7 +148,9 @@ class BlockerModule: NSObject {
         stopMonitoring()
       } else {
         // Unblock apps: Remove shields and start monitoring
-        store.clearAllSettings()
+        if #available(iOS 16.0, *) {
+          store.clearAllSettings()
+        }
         NSLog("[BlockerModule] ✅ Unblocked apps")
         // Don't start monitoring here - wait for setRemainingTime to be called with correct value
       }
@@ -394,7 +396,9 @@ class BlockerModule: NSObject {
       defaults.synchronize()
       
       // 4. UNBLOCK APPS (Clear the Shield)
-      store.clearAllSettings()
+      if #available(iOS 16.0, *) {
+        store.clearAllSettings()
+      }
       NSLog("[BlockerModule] ✅ Unlocked apps for \(unlockMinutes) minutes. New balance: \(newBalance)")
       
       // Start monitoring for the absolute threshold (usage today) so the extension can block instantly.
